@@ -34,6 +34,13 @@ type (
 	DebugFunc func(string)
 	// PromptFunc is a function that can be called to prompt the user for input.
 	PromptFunc func(string) error
+	// NodeObserver is called for every Taskfile the [Reader] successfully
+	// parses, with the file URI, its raw bytes and the parsed YAML document
+	// node. The document node retains source positions (line and column) and
+	// YAML anchors, so observers can inspect the original syntax without
+	// losing location information. Observers must be read-only and must not
+	// modify the node.
+	NodeObserver func(uri string, b []byte, doc *yaml.Node)
 	// A ReaderOption is any type that can apply a configuration to a [Reader].
 	ReaderOption interface {
 		ApplyToReader(*Reader)
@@ -54,6 +61,7 @@ type (
 		headersByHost       HeadersByHost
 		debugFunc           DebugFunc
 		promptFunc          PromptFunc
+		nodeObservers       []NodeObserver
 		promptMutex         sync.Mutex
 	}
 )
@@ -287,6 +295,18 @@ func (r *Reader) readNode(ctx context.Context, node Node) (*ast.Taskfile, error)
 		// Set the location of the taskfile for each task
 		if task.Location.Taskfile == "" {
 			task.Location.Taskfile = tf.Location
+		}
+	}
+
+	// Notify read-only observers with the raw YAML document node. The extra
+	// parse only runs when at least one observer is registered (e.g. when
+	// previewing a schema migration), so the regular read path is unaffected.
+	if len(r.nodeObservers) > 0 {
+		var doc yaml.Node
+		if err := yaml.Unmarshal(b, &doc); err == nil {
+			for _, observer := range r.nodeObservers {
+				observer(node.Location(), b, &doc)
+			}
 		}
 	}
 

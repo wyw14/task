@@ -121,6 +121,23 @@ func (o *promptFuncOption) ApplyToReader(r *Reader) {
 	r.promptFunc = o.promptFunc
 }
 
+// WithNodeObserver registers a [NodeObserver] on the [Reader]. The observer is
+// called once for every successfully parsed Taskfile with its URI, raw bytes
+// and the parsed YAML document node. Observers are read-only hooks used by
+// tooling such as the schema migration preview, which needs source positions
+// and YAML anchors that are not available from the parsed AST.
+func WithNodeObserver(observer NodeObserver) *nodeObserverOption {
+	return &nodeObserverOption{observer: observer}
+}
+
+type nodeObserverOption struct {
+	observer NodeObserver
+}
+
+func (o *nodeObserverOption) ApplyToReader(r *Reader) {
+	r.nodeObservers = append(r.nodeObservers, o.observer)
+}
+
 // WithCACert sets the path to a custom CA certificate for TLS connections.
 func WithCACert(caCert string) *caCertOption {
 	return &caCertOption{caCert: caCert}
