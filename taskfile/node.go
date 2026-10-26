@@ -22,6 +22,38 @@ type Node interface {
 	ResolveDir(dir string) (string, error)
 }
 
+// Source identifies where a taskfile node reads its content from. It is used
+// by the run result summary to report the origin of the Taskfile.
+type Source string
+
+const (
+	// SourceFile is a taskfile read from the local filesystem.
+	SourceFile Source = "file"
+	// SourceHTTP is a taskfile downloaded over HTTP(S).
+	SourceHTTP Source = "http"
+	// SourceGit is a taskfile read from a Git repository.
+	SourceGit Source = "git"
+	// SourceStdin is a taskfile read from the standard input.
+	SourceStdin Source = "stdin"
+	// SourceCache is a remote taskfile served from the local remote cache.
+	SourceCache Source = "cache"
+)
+
+// SourceOf reports the origin of the given node. Unknown node types (and
+// local file nodes) are reported as [SourceFile].
+func SourceOf(node Node) Source {
+	switch node.(type) {
+	case *HTTPNode:
+		return SourceHTTP
+	case *GitNode:
+		return SourceGit
+	case *StdinNode:
+		return SourceStdin
+	default:
+		return SourceFile
+	}
+}
+
 type RemoteNode interface {
 	Node
 	ReadContext(ctx context.Context) ([]byte, error)

@@ -1,0 +1,102 @@
+version: '3'
+
+silent: true
+
+tasks:
+  default:
+    deps:
+      - dep-a
+      - dep-b
+
+  dep-a:
+    cmds:
+      - echo dep-a
+
+  dep-b:
+    deps:
+      - dep-c
+    cmds:
+      - echo dep-b
+
+  dep-c:
+    cmds:
+      - echo dep-c
+
+  fail:
+    cmds:
+      - echo before-failure
+      - exit 7
+      - echo after-failure
+
+  fail-parent:
+    deps:
+      - fail
+
+  ignored:
+    cmds:
+      - cmd: exit 3
+        ignore_error: true
+      - echo ignored-continued
+
+  if-skipped:
+    if: false
+    cmds:
+      - echo never-reached
+
+  repeated:
+    cmds:
+      - echo run
+
+  shared:
+    cmds:
+      - echo shared
+
+  via-a:
+    deps:
+      - shared
+
+  via-b:
+    deps:
+      - shared
+
+  shared-parent:
+    deps:
+      - via-a
+      - via-b
+
+  shared-once:
+    run: once
+    cmds:
+      - echo called >> once-count.txt
+
+  once-a:
+    deps:
+      - shared-once
+
+  once-b:
+    deps:
+      - shared-once
+
+  once-parent:
+    deps:
+      - once-a
+      - once-b
+
+  cached:
+    cmds:
+      - cp source.txt generated.txt
+    sources:
+      - source.txt
+    generates:
+      - generated.txt
+    method: checksum
+
+  status-hit:
+    status:
+      - test -f marker.txt
+    cmds:
+      - echo ready > marker.txt
+
+  slow:
+    cmds:
+      - sleep 30

@@ -124,7 +124,7 @@ func (e *Executor) splitRegularAndWatchCalls(calls ...*Call) (regularCalls []*Ca
 }
 
 // RunTask runs a task by its name
-func (e *Executor) RunTask(ctx context.Context, call *Call) error {
+func (e *Executor) RunTask(ctx context.Context, call *Call) (err error) {
 	// Inject prompted vars into call if available
 	if e.promptedVars != nil {
 		if call.Vars == nil {
@@ -140,10 +140,24 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 
 	t, err := e.FastCompiledTask(call)
 	if err != nil {
+		// Even a task that fails before it can run leaves a complete terminal
+		// record.
+		e.recordTaskResult(call.Task, ctx, err)
 		return err
 	}
+
+	// The attempt (and its guaranteed terminal state) is opened before any
+	// subsequent return path so cancellation and failure are always recorded.
+	attempt := e.results.Begin(t.Task)
+	attempt.SetDisplay(t.Name())
+	defer func() {
+		status, exitCode := classifyTaskOutcome(err, ctx)
+		e.results.Finish(attempt, status, exitCode, err)
+	}()
+
 	if !shouldRunOnCurrentPlatform(t.Platforms) {
 		e.Logger.VerboseOutf(logger.Yellow, `task: %q not for current platform - ignored\n`, call.Task)
+		attempt.MarkSkipped()
 		return nil
 	}
 
@@ -159,6 +173,9 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 	if err != nil {
 		return err
 	}
+	// Declared dependencies are known before they run, so the dependency
+	// summary is complete even if running them fails or is canceled.
+	attempt.SetDeps(dependencyNames(t))
 
 	// Check if condition after CompiledTask so dynamic variables are resolved
 	if strings.TrimSpace(t.If) != "" {
@@ -168,6 +185,7 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 			Env:     env.Get(t),
 		}); err != nil {
 			e.Logger.VerboseOutf(logger.Yellow, "task: if condition not met - skipped: %q\n", call.Task)
+			attempt.MarkSkipped()
 			return nil
 		}
 	}
@@ -233,6 +251,7 @@ func (e *Executor) RunTask(ctx context.Context, call *Call) error {
 					}
 					e.Logger.Errf(logger.Magenta, "task: Task %q is up to date\n", name)
 				}
+				attempt.MarkCacheHit(cacheSourceOf(e, t))
 				return nil
 			}
 		}

@@ -163,6 +163,14 @@ func (l *Logger) VerboseOutf(color Color, s string, args ...any) {
 	}
 }
 
+// SummaryOutf prints a line of the opt-in post-run result summary to STDOUT.
+// It is deliberately separate from task execution logging: result collection
+// never writes through it, so reading task results cannot change the existing
+// log format.
+func (l *Logger) SummaryOutf(color Color, s string, args ...any) {
+	l.Outf(color, s, args...)
+}
+
 // Errf prints stuff to STDERR.
 func (l *Logger) Errf(color Color, s string, args ...any) {
 	if len(args) == 0 {

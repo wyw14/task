@@ -12,6 +12,7 @@ import (
 	"github.com/go-task/task/v3/internal/fingerprint"
 	"github.com/go-task/task/v3/internal/logger"
 	"github.com/go-task/task/v3/internal/output"
+	"github.com/go-task/task/v3/internal/results"
 	"github.com/go-task/task/v3/internal/sort"
 	"github.com/go-task/task/v3/taskfile"
 	"github.com/go-task/task/v3/taskfile/ast"
@@ -84,6 +85,12 @@ type (
 		executionHashes      map[string]*executionState
 		executionHashesMutex sync.Mutex
 		watchedDirs          *xsync.Map[string, bool]
+
+		// results collects the per-task outcome of the last run (status, exit
+		// code, retries, cache source and dependency summary). It is purely a
+		// data sink: nothing is logged when results are read.
+		results        *results.Recorder
+		taskfileOrigin results.Origin
 	}
 	TempDir struct {
 		Remote      string
@@ -111,6 +118,7 @@ func NewExecutor(opts ...ExecutorOption) *Executor {
 		mkdirMutexMap:        map[string]*sync.Mutex{},
 		executionHashes:      map[string]*executionState{},
 		executionHashesMutex: sync.Mutex{},
+		results:              results.NewRecorder(),
 	}
 	e.Options(opts...)
 	return e

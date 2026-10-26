@@ -18,6 +18,7 @@ import (
 	"github.com/go-task/task/v3/internal/filepathext"
 	"github.com/go-task/task/v3/internal/logger"
 	"github.com/go-task/task/v3/internal/output"
+	"github.com/go-task/task/v3/internal/results"
 	"github.com/go-task/task/v3/internal/version"
 	"github.com/go-task/task/v3/taskfile"
 	"github.com/go-task/task/v3/taskfile/ast"
@@ -69,6 +70,11 @@ func (e *Executor) getRootNode() (taskfile.Node, error) {
 	}
 	e.Dir = node.Dir()
 	e.Entrypoint = node.Location()
+	e.taskfileOrigin = results.Origin{
+		Source:   string(taskfile.SourceOf(node)),
+		Location: node.Location(),
+		Checksum: node.Checksum(),
+	}
 	return node, err
 }
 
@@ -274,6 +280,14 @@ func (e *Executor) setupConcurrencyState() {
 	if e.Concurrency > 0 {
 		e.concurrencySemaphore = make(chan struct{}, e.Concurrency)
 	}
+
+	// Reset per-run result tracking alongside the other per-run state.
+	// Tests may construct an Executor without NewExecutor, so initialize the
+	// recorder lazily.
+	if e.results == nil {
+		e.results = results.NewRecorder()
+	}
+	e.results.Reset(e.taskfileOrigin)
 }
 
 func (e *Executor) doVersionChecks() error {
