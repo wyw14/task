@@ -1,0 +1,9 @@
+version: '3'
+
+vars:
+  LOCAL_VAR: local-include-value
+
+tasks:
+  local-task:
+    cmds:
+      - echo "{{.LOCAL_VAR}}"

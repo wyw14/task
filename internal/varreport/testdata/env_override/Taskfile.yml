@@ -1,0 +1,17 @@
+version: '3'
+
+env:
+  ONLY_ENV_BLOCK: env-default
+  OVERRIDDEN: taskfile-env-default
+
+vars:
+  OVERRIDDEN: taskfile-var-wins
+  VAR_ONLY: var-value
+
+tasks:
+  show:
+    desc: prints {{.OVERRIDDEN}}
+    cmds:
+      - echo "{{.OVERRIDDEN}} {{.EXTERNAL_ENV}} {{.ONLY_ENV_BLOCK}}"
+    env:
+      TASK_LOCAL_ENV: local-{{.VAR_ONLY}}

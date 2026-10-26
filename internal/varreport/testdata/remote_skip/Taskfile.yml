@@ -1,0 +1,13 @@
+version: '3'
+
+includes:
+  web: https://example.invalid/Taskfile.yml
+  local: local/Taskfile.yml
+
+vars:
+  LOCAL_ONLY: value
+
+tasks:
+  hi:
+    cmds:
+      - echo "{{.LOCAL_ONLY}} {{.LOCAL_VAR}}"

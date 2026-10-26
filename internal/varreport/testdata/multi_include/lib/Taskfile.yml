@@ -1,0 +1,13 @@
+version: '3'
+
+vars:
+  LIB_VAR: lib-value
+  SHARED: from-lib
+
+includes:
+  sub: sub/Taskfile.yml
+
+tasks:
+  build:
+    cmds:
+      - echo "{{.LIB_VAR}} {{.SUB_VAR}} {{.LIB_INCLUDE_VAR}}"

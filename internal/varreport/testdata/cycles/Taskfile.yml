@@ -1,0 +1,16 @@
+version: '3'
+
+vars:
+  CYCA: '{{.CYCB}}'
+  CYCB: '{{.CYCC}}'
+  CYCC: '{{.CYCA}}'
+  SELF: '{{.SELF}}'
+  HEALTHY: '{{.CYCA}} ok'
+
+tasks:
+  t:
+    cmds:
+      - echo ok
+    vars:
+      LOOPA: '{{.LOOPB}}'
+      LOOPB: '{{.LOOPA}}'

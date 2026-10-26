@@ -133,6 +133,22 @@ func run() error {
 		return nil
 	}
 
+	if flags.VarReport {
+		dir := flags.Dir
+		if flags.Global {
+			if home, err := os.UserHomeDir(); err == nil {
+				dir = home
+			}
+		}
+		return task.RunVariableReport(
+			context.Background(),
+			dir,
+			flags.Entrypoint,
+			os.Stdout,
+			flags.ListJson,
+		)
+	}
+
 	e := task.NewExecutor(
 		flags.WithFlags(),
 		task.WithVersionCheck(true),

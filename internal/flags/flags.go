@@ -53,6 +53,7 @@ var (
 	List                bool
 	ListAll             bool
 	ListJson            bool
+	VarReport           bool
 	TaskSort            string
 	Status              bool
 	NoStatus            bool
@@ -135,6 +136,7 @@ func init() {
 	pflag.BoolVarP(&List, "list", "l", false, "Lists tasks with description of current Taskfile.")
 	pflag.BoolVarP(&ListAll, "list-all", "a", false, "Lists tasks with or without a description.")
 	pflag.BoolVarP(&ListJson, "json", "j", false, "Formats task list as JSON.")
+	pflag.BoolVar(&VarReport, "var-report", false, "Shows a static report of variable definitions and references without running tasks or downloading includes.")
 	pflag.StringVar(&TaskSort, "sort", "", "Changes the order of the tasks when listed. [default|alphanumeric|none].")
 	pflag.BoolVar(&Status, "status", false, "Exits with non-zero exit code if any of the given tasks is not up-to-date.")
 	pflag.BoolVar(&NoStatus, "no-status", false, "Ignore status when listing tasks as JSON")
@@ -249,8 +251,8 @@ func Validate() error {
 		return errors.New("task: cannot use --list and --list-all at the same time")
 	}
 
-	if ListJson && !List && !ListAll {
-		return errors.New("task: --json only applies to --list or --list-all")
+	if ListJson && !List && !ListAll && !VarReport {
+		return errors.New("task: --json only applies to --list, --list-all or --var-report")
 	}
 
 	if NoStatus && !ListJson {

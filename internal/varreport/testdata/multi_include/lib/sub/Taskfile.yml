@@ -1,0 +1,9 @@
+version: '3'
+
+vars:
+  SUB_VAR: sub-value
+
+tasks:
+  clean:
+    cmds:
+      - echo "{{.SUB_VAR}}"

@@ -45,6 +45,7 @@ type (
 		insecure            bool
 		download            bool
 		offline             bool
+		static              bool
 		trustedHosts        []string
 		tempDir             string
 		cacheExpiryDuration time.Duration
@@ -55,6 +56,21 @@ type (
 		debugFunc           DebugFunc
 		promptFunc          PromptFunc
 		promptMutex         sync.Mutex
+		staticMutex         sync.Mutex
+		skippedRemote       []SkippedRemoteInclude
+	}
+	// SkippedRemoteInclude describes a remote include that was not followed
+	// because the Reader runs in static analysis mode, where downloading is
+	// forbidden.
+	SkippedRemoteInclude struct {
+		// Source is the URI of the Taskfile that declared the include.
+		Source string
+		// Namespace is the include namespace as declared in the Source
+		// Taskfile.
+		Namespace string
+		// URI is the (template-resolved) remote location of the included
+		// Taskfile.
+		URI string
 	}
 )
 
@@ -97,11 +113,40 @@ func (r *Reader) Read(ctx context.Context, node Node) (*ast.TaskfileGraph, error
 		}
 	}()
 
+	// In static analysis mode remote Taskfiles are never downloaded or
+	// cloned, including the root Taskfile.
+	if r.static {
+		if _, isRemote := node.(RemoteNode); isRemote {
+			return nil, errors.New(
+				"task: static analysis does not download remote Taskfiles: " + node.Location(),
+			)
+		}
+	}
+
 	if err := r.include(ctx, node); err != nil {
 		return nil, err
 	}
 
 	return r.graph, nil
+}
+
+// SkippedRemoteIncludes returns the remote includes that were not followed
+// because the Reader runs in static analysis mode, where downloading is
+// forbidden.
+func (r *Reader) SkippedRemoteIncludes() []SkippedRemoteInclude {
+	r.staticMutex.Lock()
+	defer r.staticMutex.Unlock()
+	return slices.Clone(r.skippedRemote)
+}
+
+func (r *Reader) addSkippedRemote(source, namespace, uri string) {
+	r.staticMutex.Lock()
+	defer r.staticMutex.Unlock()
+	r.skippedRemote = append(r.skippedRemote, SkippedRemoteInclude{
+		Source:    source,
+		Namespace: namespace,
+		URI:       uri,
+	})
 }
 
 func (r *Reader) debugf(format string, a ...any) {
@@ -194,6 +239,13 @@ func (r *Reader) include(ctx context.Context, node Node) error {
 			include.Dir, err = node.ResolveDir(include.Dir)
 			if err != nil {
 				return err
+			}
+
+			// Static analysis must never download or clone remote includes.
+			// Record the skipped include and stop recursing down this branch.
+			if r.static && IsRemoteEntrypoint(entrypoint) {
+				r.addSkippedRemote(node.Location(), include.Namespace, entrypoint)
+				return nil
 			}
 
 			includeNode, err := NewNode(entrypoint, include.Dir, r.insecure,

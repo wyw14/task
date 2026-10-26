@@ -1,0 +1,33 @@
+version: '3'
+
+vars:
+  NAME: world
+  GREETING: 'Hello {{.NAME}}'
+  MESSAGE: '{{.GREETING}}! {{range .LIST_VAR}}[{{.}}]{{end}}'
+  NOW:
+    sh: echo now
+  SECRET_NOW:
+    sh: echo secret-now
+    secret: true
+  TIME_MSG: 'time is {{.NOW}}'
+  VIA_REF:
+    ref: .MESSAGE
+  LIST_VAR:
+    - 'a {{.NAME}}'
+    - '{{.GREETING}}'
+  UNUSED_TPL: '{{.NAME}}'
+  MARKER:
+    # If the report ever executes sh variables, this writes a marker file.
+    sh: 'echo executed > task-sh-marker.txt'
+
+tasks:
+  nested:
+    desc: 'uses {{.GREETING}} nested templates'
+    cmds:
+      - cmd: 'echo "{{.MESSAGE}} {{.TIME_MSG}} {{.VIA_REF}}"'
+        for:
+          var: ITEMS_VAR
+          as: ITEM
+      - 'echo "{{.ITEM}}"'
+    vars:
+      ITEMS_VAR: '{{.LIST_VAR}}'

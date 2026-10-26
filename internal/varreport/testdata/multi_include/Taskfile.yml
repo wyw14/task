@@ -1,0 +1,20 @@
+version: '3'
+
+vars:
+  ROOT_VAR: root-value
+  SHARED: from-root
+  UNUSED_ROOT: nobody-reads-me
+
+includes:
+  lib:
+    taskfile: lib/Taskfile.yml
+    vars:
+      LIB_INCLUDE_VAR: include-{{.ROOT_VAR}}
+
+tasks:
+  root-task:
+    desc: Root task using {{.ROOT_VAR}}
+    cmds:
+      - echo "{{.ROOT_VAR}} {{.SHARED}} {{.LIB_VAR}}"
+    deps:
+      - lib:build

@@ -44,6 +44,23 @@ func (o *offlineOption) ApplyToReader(r *Reader) {
 	r.offline = o.offline
 }
 
+// WithStaticAnalysis puts the [Reader] in static analysis mode. In this mode
+// the reader only reads local Taskfiles: remote (HTTP/git) includes are
+// skipped (and reported through Reader.SkippedRemoteIncludes) instead of
+// being downloaded or cloned, and a remote root Taskfile is an error. No
+// tasks or shell commands are executed by reading.
+func WithStaticAnalysis(static bool) *staticOption {
+	return &staticOption{static: static}
+}
+
+type staticOption struct {
+	static bool
+}
+
+func (o *staticOption) ApplyToReader(r *Reader) {
+	r.static = o.static
+}
+
 // WithTrustedHosts configures the [Reader] with a list of trusted hosts for remote
 // Taskfiles. Hosts in this list will not prompt for user confirmation.
 func WithTrustedHosts(trustedHosts []string) *trustedHostsOption {
