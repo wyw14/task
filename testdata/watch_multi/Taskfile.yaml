@@ -1,0 +1,15 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  task-a:
+    sources:
+      - "a/*"
+    cmds:
+      - echo "A running!"
+  task-b:
+    sources:
+      - "b/*"
+    cmds:
+      - echo "B running!"

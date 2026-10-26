@@ -45,6 +45,7 @@ type (
 		Cert                string
 		CertKey             string
 		Watch               bool
+		WatchDiagnostics    bool
 		Verbose             bool
 		Silent              bool
 		DisableFuzzy        bool
@@ -386,6 +387,23 @@ type watchOption struct {
 
 func (o *watchOption) ApplyToExecutor(e *Executor) {
 	e.Watch = o.watch
+}
+
+// WithWatchDiagnostics tells the [Executor] to attribute filesystem events
+// received while watching tasks: whether an event was merged with duplicates,
+// filtered by an ignored directory, matched task sources and which tasks were
+// rerun as a result. It only adds diagnostic output and never changes the
+// debounce, cancellation or rerun behavior.
+func WithWatchDiagnostics(watchDiagnostics bool) *watchDiagnosticsOption {
+	return &watchDiagnosticsOption{watchDiagnostics}
+}
+
+type watchDiagnosticsOption struct {
+	watchDiagnostics bool
+}
+
+func (o *watchDiagnosticsOption) ApplyToExecutor(e *Executor) {
+	e.WatchDiagnostics = o.watchDiagnostics
 }
 
 // WithVerbose tells the [Executor] to output more information about the tasks

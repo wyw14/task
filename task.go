@@ -101,7 +101,7 @@ func (e *Executor) Run(ctx context.Context, calls ...*Call) error {
 	}
 
 	if len(watchCalls) > 0 {
-		return e.watchTasks(watchCalls...)
+		return e.watchTasks(ctx, watchCalls...)
 	}
 
 	return nil

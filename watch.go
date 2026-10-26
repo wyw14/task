@@ -25,8 +25,10 @@ import (
 
 const defaultWaitTime = 100 * time.Millisecond
 
-// watchTasks start watching the given tasks
-func (e *Executor) watchTasks(calls ...*Call) error {
+// watchTasks start watching the given tasks. It returns when the parent
+// context is cancelled: the CLI passes a context that is only done when the
+// process exits, while tests cancel it to stop watching.
+func (e *Executor) watchTasks(parent context.Context, calls ...*Call) error {
 	tasks := make([]string, len(calls))
 	for i, c := range calls {
 		tasks[i] = c.Task
@@ -34,7 +36,8 @@ func (e *Executor) watchTasks(calls ...*Call) error {
 
 	e.Logger.Errf(logger.Green, "task: Started watching for tasks: %s\n", strings.Join(tasks, ", "))
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
 	for _, c := range calls {
 		go func() {
 			err := e.RunTask(ctx, c)
@@ -76,10 +79,14 @@ func (e *Executor) watchTasks(calls ...*Call) error {
 					cancel()
 					return
 				}
-				e.Logger.VerboseErrf(logger.Magenta, "task: received watch event: %v\n", event)
+				e.Logger.VerboseErrf(logger.Magenta, "task: received watch event: %v\n", event.Event)
+				e.logWatchEvent(event)
 
 				cancel()
-				ctx, cancel = context.WithCancel(context.Background())
+				// Derive the run context from parent so each event cancels
+				// the previous run, while shutdown (process exit in the CLI,
+				// test cleanup otherwise) cancels the in-flight run too.
+				ctx, cancel = context.WithCancel(parent)
 
 				e.Compiler.ResetCache()
 
@@ -87,6 +94,7 @@ func (e *Executor) watchTasks(calls ...*Call) error {
 					go func() {
 						if ShouldIgnore(event.Name) {
 							e.Logger.VerboseErrf(logger.Magenta, "task: event skipped for being an ignored dir: %s\n", event.Name)
+							e.logWatchIgnored(c.Task, event.Event)
 							return
 						}
 						t, err := e.GetTask(c)
@@ -101,11 +109,17 @@ func (e *Executor) watchTasks(calls ...*Call) error {
 							return
 						}
 
-						if !event.Has(fsnotify.Remove) && !slices.Contains(files, filepath.ToSlash(event.Name)) {
+						isRemove := event.Has(fsnotify.Remove)
+						matchesSources := slices.Contains(files, filepath.ToSlash(event.Name))
+						if !isRemove && !matchesSources {
 							relPath, _ := filepath.Rel(baseDir, event.Name)
 							e.Logger.VerboseErrf(logger.Magenta, "task: skipped for file not in sources: %s\n", relPath)
+						}
+						e.logWatchAttribution(c, t, baseDir, event.Event, isRemove, matchesSources)
+						if !isRemove && !matchesSources {
 							return
 						}
+						e.logWatchRerun(c.Task)
 						err = e.RunTask(ctx, c)
 						if err == nil {
 							e.Logger.Errf(logger.Green, "task: task \"%s\" finished running\n", c.Task)
@@ -136,11 +150,15 @@ func (e *Executor) watchTasks(calls ...*Call) error {
 			if err := e.registerWatchedDirs(w, calls...); err != nil {
 				e.Logger.Errf(logger.Red, "%v\n", err)
 			}
-			time.Sleep(5 * time.Second)
+			select {
+			case <-parent.Done():
+				return
+			case <-time.After(5 * time.Second):
+			}
 		}
 	}()
 
-	<-make(chan struct{})
+	<-parent.Done()
 	return nil
 }
 
@@ -193,6 +211,9 @@ var ignorePaths = []string{
 }
 
 func ShouldIgnore(path string) bool {
+	// Normalize separators so events reported with native separators
+	// (e.g. backslashes on Windows) are filtered consistently.
+	path = filepath.ToSlash(path)
 	for _, p := range ignorePaths {
 		if strings.Contains(path, fmt.Sprintf("%s/", p)) || strings.HasSuffix(path, p) {
 			return true

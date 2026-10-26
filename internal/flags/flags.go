@@ -61,6 +61,7 @@ var (
 	Force               bool
 	ForceAll            bool
 	Watch               bool
+	WatchDiagnostics    bool
 	Verbose             bool
 	Silent              bool
 	DisableFuzzy        bool
@@ -141,6 +142,7 @@ func init() {
 	pflag.BoolVar(&Nested, "nested", false, "Nest namespaces when listing tasks as JSON")
 	pflag.BoolVar(&Insecure, "insecure", getConfig(config, "REMOTE_INSECURE", func() *bool { return config.Remote.Insecure }, false), "Forces Task to download Taskfiles over insecure connections.")
 	pflag.BoolVarP(&Watch, "watch", "w", false, "Enables watch of the given task.")
+	pflag.BoolVar(&WatchDiagnostics, "watch-diagnostics", false, "Enables watch event attribution diagnostics: event merging, ignored directories, sources matches and reruns.")
 	pflag.BoolVarP(&Verbose, "verbose", "v", getConfig(config, "VERBOSE", func() *bool { return config.Verbose }, false), "Enables verbose mode.")
 	pflag.BoolVarP(&Silent, "silent", "s", getConfig(config, "SILENT", func() *bool { return config.Silent }, false), "Disables echoing.")
 	pflag.BoolVar(&DisableFuzzy, "disable-fuzzy", getConfig(config, "DISABLE_FUZZY", func() *bool { return config.DisableFuzzy }, false), "Disables fuzzy matching for task names.")
@@ -316,6 +318,7 @@ func (o *flagsOption) ApplyToExecutor(e *task.Executor) {
 		task.WithCert(Cert),
 		task.WithCertKey(CertKey),
 		task.WithWatch(Watch),
+		task.WithWatchDiagnostics(WatchDiagnostics),
 		task.WithVerbose(Verbose),
 		task.WithSilent(Silent),
 		task.WithDisableFuzzy(DisableFuzzy),
